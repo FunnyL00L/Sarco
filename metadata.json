@@ -1,0 +1,7 @@
+{
+  "name": "SarcoAR",
+  "description": "A simple WebAR application for mobile and tablet with an infinite loop of 3D objects.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
