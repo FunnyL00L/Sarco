@@ -3,10 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useRef, useEffect, Suspense, Component, ReactNode } from 'react';
+import { useState, useRef, useEffect, Suspense, Component, ReactNode, useMemo } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { XR, createXRStore, useXRHitTest, useXRInputSourceEvent, XRDomOverlay } from '@react-three/xr';
-import { OrbitControls, Environment, Line, useGLTF } from '@react-three/drei';
+import { OrbitControls, Environment, Line, useGLTF, useProgress } from '@react-three/drei';
 import { Box, Circle, Triangle, Info, X, ChevronLeft, ChevronRight, HelpCircle, RotateCcw, RotateCw, Bone } from 'lucide-react';
 import * as THREE from 'three';
 import QuizOverlay from './components/QuizOverlay';
@@ -21,6 +21,11 @@ const arData = [
   { id: '013', glb: 'https://ancdgyegjsjonjvjqorc.supabase.co/storage/v1/object/public/Asset/013.glb', img: 'https://ancdgyegjsjonjvjqorc.supabase.co/storage/v1/object/public/Asset/013.png', desc: sarcophagusDesc, title: 'Sarkofagus 3' },
 ];
 
+// Preload semua model GLB agar tidak hilang saat transisi
+arData.forEach((data) => {
+  useGLTF.preload(data.glb);
+});
+
 // Error Boundary untuk mencegah crash jika file GLB belum diupload
 class ErrorBoundary extends Component<{fallback: ReactNode, children: ReactNode}, {hasError: boolean}> {
   state = { hasError: false };
@@ -33,7 +38,8 @@ class ErrorBoundary extends Component<{fallback: ReactNode, children: ReactNode}
 
 function GLBModel({ url }: { url: string }) {
   const { scene } = useGLTF(url);
-  return <primitive object={scene} />;
+  const clone = useMemo(() => scene.clone(), [scene]);
+  return <primitive object={clone} />;
 }
 
 const store = createXRStore({
@@ -217,7 +223,7 @@ function ReticleAndPlacement({
 export default function App() {
   const [objectIndex, setObjectIndex] = useState(0);
   const [showInfo, setShowInfo] = useState(false);
-  const [progress, setProgress] = useState(0);
+  const { progress: loadingProgress, active, loaded, total } = useProgress();
   const [isLoading, setIsLoading] = useState(true);
   const [instruction, setInstruction] = useState("Gerakkan kamera perlahan. Dekatkan atau jauhkan perangkat ke lantai.");
   const [readiness, setReadiness] = useState(0);
@@ -259,18 +265,19 @@ export default function App() {
   };
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setProgress((p) => {
-        if (p >= 100) {
-          clearInterval(interval);
-          setTimeout(() => setIsLoading(false), 500);
-          return 100;
-        }
-        return p + Math.floor(Math.random() * 10) + 5;
-      });
-    }, 100);
-    return () => clearInterval(interval);
-  }, []);
+    // If loading is complete (progress is 100 or all items loaded)
+    if (loadingProgress === 100 || (loaded > 0 && loaded === total)) {
+      const timer = setTimeout(() => setIsLoading(false), 500);
+      return () => clearTimeout(timer);
+    }
+    
+    // Fallback if it's already cached and useProgress doesn't trigger
+    const fallbackTimer = setTimeout(() => {
+      setIsLoading(false);
+    }, 3000);
+    
+    return () => clearTimeout(fallbackTimer);
+  }, [loadingProgress, loaded, total]);
 
   const handleNextObject = () => {
     setObjectIndex((prev) => (prev + 1) % 3);
@@ -287,11 +294,11 @@ export default function App() {
         <div className="w-64 h-4 bg-zinc-800 rounded-full overflow-hidden mb-2 border border-zinc-700">
           <div
             className="h-full bg-blue-500 transition-all duration-200 ease-out"
-            style={{ width: `${Math.min(progress, 100)}%` }}
+            style={{ width: `${Math.min(loadingProgress, 100)}%` }}
           />
         </div>
-        <p className="text-zinc-400 font-mono">{Math.min(progress, 100)}%</p>
-        <p className="text-sm text-zinc-500 mt-4">Memuat aset 3D...</p>
+        <p className="text-zinc-400 font-mono">{Math.round(Math.min(loadingProgress, 100))}%</p>
+        <p className="text-sm text-zinc-500 mt-4">Memuat aset 3D dari Supabase...</p>
       </div>
     );
   }
