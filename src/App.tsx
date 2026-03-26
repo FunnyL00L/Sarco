@@ -9,6 +9,7 @@ import { XR, createXRStore, useXRHitTest, useXRInputSourceEvent, XRDomOverlay } 
 import { OrbitControls, Environment, Line, useGLTF } from '@react-three/drei';
 import { Box, Circle, Triangle, Info, X, ChevronLeft, ChevronRight, HelpCircle, RotateCcw, RotateCw, Bone } from 'lucide-react';
 import * as THREE from 'three';
+import QuizOverlay from './components/QuizOverlay';
 
 // Deskripsi Sarkofagus
 const sarcophagusDesc = "Sarkofagus merupakan peti mati batu peninggalan masa Perundagian yang berfungsi sebagai wadah persemayaman jenazah sekaligus simbol perjalanan spiritual menuju alam roh. Di Bali, khususnya temuan dari wilayah Buleleng seperti di Desa Alas Angker, objek ini memiliki ciri khas berupa bentuk simetris menyerupai lesung atau tong dengan tonjolan pada bagian ujungnya yang sering dipahat menyerupai wajah atau sosok pelindung. Terbuat dari batu padas alami, sarkofagus ini mencerminkan tingginya tingkat peradaban dan kemahiran teknik memahat masyarakat Bali kuno dalam menghormati leluhur mereka.";
@@ -222,11 +223,23 @@ export default function App() {
   const [readiness, setReadiness] = useState(0);
   const [rotationY, setRotationY] = useState(0);
   const [infoModal, setInfoModal] = useState<{ title: string, desc: string } | null>(null);
-  const [currentScreen, setCurrentScreen] = useState<'dashboard' | 'quiz' | 'about'>('dashboard');
+  const [currentScreen, setCurrentScreen] = useState<'dashboard' | 'quiz' | 'about' | 'ar'>('dashboard');
 
   const [isSwiping, setIsSwiping] = useState(false);
   const [touchStartX, setTouchStartX] = useState(0);
   const [startRotY, setStartRotY] = useState(0);
+
+  const [isARSupported, setIsARSupported] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (navigator.xr) {
+      navigator.xr.isSessionSupported('immersive-ar').then((supported) => {
+        setIsARSupported(supported);
+      });
+    } else {
+      setIsARSupported(false);
+    }
+  }, []);
 
   const handleTouchStart = (e: React.TouchEvent) => {
     if (readiness < 100) return;
@@ -284,7 +297,7 @@ export default function App() {
   }
 
   return (
-    <div className="relative w-full h-screen bg-zinc-900 overflow-hidden font-sans">
+    <div className={`relative w-full h-screen overflow-hidden font-sans ${currentScreen === 'ar' ? 'bg-transparent' : 'bg-zinc-900'}`}>
       {/* 3D Canvas */}
       <Canvas className="w-full h-full" camera={{ position: [0, 0, 2], near: 0.001, far: 100 }}>
         <XR store={store}>
@@ -487,11 +500,28 @@ export default function App() {
             
             <div className="flex flex-col gap-4 w-64">
               <button
-                onClick={() => store.enterAR()}
-                className="w-full bg-amber-600 hover:bg-amber-700 text-white py-4 rounded-2xl font-bold text-lg transition-all active:scale-95 shadow-lg shadow-amber-600/25 flex items-center justify-center gap-2"
+                onClick={async () => {
+                  if (isARSupported === false) {
+                    alert("AR tidak didukung di perangkat atau browser ini.");
+                    return;
+                  }
+                  try {
+                    await store.enterAR();
+                    setCurrentScreen('ar');
+                  } catch (err: any) {
+                    console.error("Failed to enter AR:", err);
+                    alert("AR tidak didukung di perangkat ini atau terjadi kesalahan: " + err.message);
+                  }
+                }}
+                disabled={isARSupported === false}
+                className={`w-full py-4 rounded-2xl font-bold text-lg transition-all flex items-center justify-center gap-2 ${
+                  isARSupported === false 
+                    ? 'bg-zinc-700 text-zinc-500 cursor-not-allowed' 
+                    : 'bg-amber-600 hover:bg-amber-700 text-white active:scale-95 shadow-lg shadow-amber-600/25'
+                }`}
               >
                 <Bone size={20} />
-                Mulai AR
+                {isARSupported === false ? 'AR Tidak Didukung' : 'Mulai AR'}
               </button>
               <button
                 onClick={() => setCurrentScreen('quiz')}
@@ -526,19 +556,7 @@ export default function App() {
 
       {/* Quiz Screen */}
       {currentScreen === 'quiz' && (
-        <div className="absolute inset-0 bg-zinc-900 flex flex-col items-center justify-center z-20 pointer-events-auto p-6">
-          <div className="w-16 h-16 bg-emerald-500/20 rounded-2xl flex items-center justify-center mb-6">
-            <HelpCircle size={32} className="text-emerald-400" />
-          </div>
-          <h2 className="text-3xl font-bold text-white mb-4">Quiz</h2>
-          <p className="text-zinc-400 mb-8 text-center max-w-sm">Fitur Quiz sedang dalam pengembangan. Nantikan update selanjutnya!</p>
-          <button
-            onClick={() => setCurrentScreen('dashboard')}
-            className="px-8 py-3 bg-white text-black font-semibold rounded-xl hover:bg-zinc-200 transition-colors"
-          >
-            Kembali ke Dashboard
-          </button>
-        </div>
+        <QuizOverlay onClose={() => setCurrentScreen('dashboard')} />
       )}
 
       {/* About Screen */}
