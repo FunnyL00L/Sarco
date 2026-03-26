@@ -17,7 +17,7 @@ const sarcophagusDesc = "Sarkofagus merupakan peti mati batu peninggalan masa Pe
 // Data Objek AR
 const arData = [
   { id: '011', glb: 'https://ancdgyegjsjonjvjqorc.supabase.co/storage/v1/object/public/Asset/011.glb', img: 'https://ancdgyegjsjonjvjqorc.supabase.co/storage/v1/object/public/Asset/011.png', desc: sarcophagusDesc, title: 'Sarkofagus 1' },
-  { id: '012', glb: 'https://ancdgyegjsjonjvjqorc.supabase.co/storage/v1/object/public/Asset/012.glb', img: 'https://ancdgyegjsjonjvjqorc.supabase.co/storage/v1/object/public/Asset/012.png', desc: sarcophagusDesc, title: 'Sarkofagus 2' }
+  { id: '012', glb: 'https://ancdgyegjsjonjvjqorc.supabase.co/storage/v1/object/public/Asset/012.glb', img: 'https://ancdgyegjsjonjvjqorc.supabase.co/storage/v1/object/public/Asset/012.png', desc: sarcophagusDesc, title: 'Sarkofagus 2' },
   // { id: '013', glb: 'https://ancdgyegjsjonjvjqorc.supabase.co/storage/v1/object/public/Asset/013.glb', img: 'https://ancdgyegjsjonjvjqorc.supabase.co/storage/v1/object/public/Asset/013.png', desc: sarcophagusDesc, title: 'Sarkofagus 3' },
 ];
 
