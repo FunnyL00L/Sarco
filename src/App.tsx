@@ -7,7 +7,7 @@ import { useState, useRef, useEffect, Suspense, Component, ReactNode, useMemo } 
 import { Canvas } from '@react-three/fiber';
 import { XR, createXRStore, useXRHitTest, useXRInputSourceEvent, XRDomOverlay } from '@react-three/xr';
 import { OrbitControls, Environment, Line, useGLTF, useProgress } from '@react-three/drei';
-import { Box, Circle, Triangle, Info, X, ChevronLeft, ChevronRight, HelpCircle, RotateCcw, RotateCw, Bone } from 'lucide-react';
+import { Box, Circle, Triangle, Info, X, ChevronLeft, ChevronRight, HelpCircle, RotateCcw, RotateCw, Bone, BookOpen, Download } from 'lucide-react';
 import * as THREE from 'three';
 import QuizOverlay from './components/QuizOverlay';
 
@@ -220,6 +220,118 @@ function ReticleAndPlacement({
   );
 }
 
+function AboutOverlay({ onClose }: { onClose: () => void }) {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch('https://script.google.com/macros/s/AKfycbzeik0uj5rHx4y9yXNZjoLtdF22tVeQSt04q3uioGXz/exec?action=getContents&game_id=SARCO_AR')
+      .then(res => res.text())
+      .then(text => {
+        try {
+          const json = JSON.parse(text);
+          setData(json);
+        } catch (e) {
+          setData({ content: text });
+        }
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error(err);
+        setLoading(false);
+      });
+  }, []);
+
+  let downloadLink = null;
+  let content = "SarcoAR adalah aplikasi Augmented Reality interaktif..."; 
+  
+  if (data) {
+    if (data.materi) content = data.materi;
+    else if (data.content) content = data.content;
+    else if (data.description) content = data.description;
+    else if (typeof data === 'string') content = data;
+    else if (data.data) content = data.data.content || data.data.description || content;
+
+    if (data.downloadLink) downloadLink = data.downloadLink;
+    else if (data.link) downloadLink = data.link;
+    else if (data.file) downloadLink = data.file;
+    else if (data.data && data.data.link) downloadLink = data.data.link;
+    else if (data.data && data.data.downloadLink) downloadLink = data.data.downloadLink;
+  }
+
+  return (
+    <div className="absolute inset-0 bg-zinc-900 flex flex-col items-center justify-center z-20 pointer-events-auto p-6">
+      <div className="w-16 h-16 bg-purple-500/20 rounded-2xl flex items-center justify-center mb-6">
+        <Info size={32} className="text-purple-400" />
+      </div>
+      <h2 className="text-3xl font-bold text-white mb-4">About SarcoAR</h2>
+      
+      {loading ? (
+        <div className="text-zinc-400 mb-8 flex items-center gap-2">
+          <div className="animate-spin w-4 h-4 rounded-full border-2 border-zinc-400 border-t-transparent"></div>
+          Memuat konten...
+        </div>
+      ) : (
+        <div className="flex flex-col items-center w-full max-w-sm">
+          <p className="text-zinc-400 mb-8 text-center leading-relaxed overflow-y-auto max-h-64 whitespace-pre-wrap">
+            {content}
+          </p>
+          
+          {downloadLink && (
+            <a
+              href={downloadLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-6 py-3 bg-amber-600 hover:bg-amber-700 text-white font-semibold rounded-xl transition-colors mb-4 flex items-center gap-2 shadow-lg shadow-amber-600/20"
+            >
+              <Download size={20} />
+              Unduh File
+            </a>
+          )}
+        </div>
+      )}
+
+      <button
+        onClick={onClose}
+        className="px-8 py-3 bg-white text-black font-semibold rounded-xl hover:bg-zinc-200 transition-colors mt-4"
+      >
+        Kembali ke Dashboard
+      </button>
+    </div>
+  );
+}
+
+function MateriOverlay({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="absolute inset-0 bg-zinc-900 flex flex-col items-center justify-center z-20 pointer-events-auto p-6">
+      <div className="w-16 h-16 bg-blue-500/20 rounded-2xl flex items-center justify-center mb-6">
+        <BookOpen size={32} className="text-blue-400" />
+      </div>
+      <h2 className="text-3xl font-bold text-white mb-4">Materi Pembelajaran</h2>
+      <p className="text-zinc-400 mb-8 text-center max-w-sm leading-relaxed">
+        Unduh materi pembelajaran terkait SarcoAR untuk mendalami bentuk dan makna dari sarkofagus.
+      </p>
+      
+      <a
+        href="https://drive.google.com/uc?id=1iUQvt0DTvnzchGgPSOX22L82VDwGHcCP&export=download"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="px-6 py-4 bg-amber-600 hover:bg-amber-700 text-white font-semibold rounded-xl transition-colors mb-6 flex items-center gap-2 shadow-lg shadow-amber-600/20"
+      >
+        <Download size={20} />
+        Unduh Materi Modul
+      </a>
+
+      <button
+        onClick={onClose}
+        className="px-8 py-3 bg-white text-black font-semibold rounded-xl hover:bg-zinc-200 transition-colors"
+      >
+        Kembali ke Dashboard
+      </button>
+    </div>
+  );
+}
+
 export default function App() {
   const [objectIndex, setObjectIndex] = useState(0);
   const [showInfo, setShowInfo] = useState(false);
@@ -229,7 +341,7 @@ export default function App() {
   const [readiness, setReadiness] = useState(0);
   const [rotationY, setRotationY] = useState(0);
   const [infoModal, setInfoModal] = useState<{ title: string, desc: string } | null>(null);
-  const [currentScreen, setCurrentScreen] = useState<'dashboard' | 'quiz' | 'about' | 'ar'>('dashboard');
+  const [currentScreen, setCurrentScreen] = useState<'dashboard' | 'quiz' | 'about' | 'ar' | 'materi'>('dashboard');
 
   const [isSwiping, setIsSwiping] = useState(false);
   const [touchStartX, setTouchStartX] = useState(0);
@@ -531,6 +643,13 @@ export default function App() {
                 {isARSupported === false ? 'AR Tidak Didukung' : 'Mulai AR'}
               </button>
               <button
+                onClick={() => setCurrentScreen('materi')}
+                className="w-full bg-blue-600/80 backdrop-blur-md hover:bg-blue-700 text-white py-4 rounded-2xl font-semibold transition-all active:scale-95 border border-white/10 flex items-center justify-center gap-2 shadow-lg shadow-blue-600/20"
+              >
+                <BookOpen size={20} />
+                Materi
+              </button>
+              <button
                 onClick={() => setCurrentScreen('quiz')}
                 className="w-full bg-zinc-800/80 backdrop-blur-md hover:bg-zinc-700 text-white py-4 rounded-2xl font-semibold transition-all active:scale-95 border border-white/10 flex items-center justify-center gap-2"
               >
@@ -566,23 +685,14 @@ export default function App() {
         <QuizOverlay onClose={() => setCurrentScreen('dashboard')} />
       )}
 
+      {/* Materi Screen */}
+      {currentScreen === 'materi' && (
+        <MateriOverlay onClose={() => setCurrentScreen('dashboard')} />
+      )}
+
       {/* About Screen */}
       {currentScreen === 'about' && (
-        <div className="absolute inset-0 bg-zinc-900 flex flex-col items-center justify-center z-20 pointer-events-auto p-6">
-          <div className="w-16 h-16 bg-purple-500/20 rounded-2xl flex items-center justify-center mb-6">
-            <Info size={32} className="text-purple-400" />
-          </div>
-          <h2 className="text-3xl font-bold text-white mb-4">About SarcoAR</h2>
-          <p className="text-zinc-400 mb-8 text-center max-w-sm leading-relaxed">
-            SarcoAR adalah aplikasi Augmented Reality interaktif yang dirancang untuk membantu pengguna memvisualisasikan dan mempelajari bangun ruang tiga dimensi secara langsung di lingkungan sekitar.
-          </p>
-          <button
-            onClick={() => setCurrentScreen('dashboard')}
-            className="px-8 py-3 bg-white text-black font-semibold rounded-xl hover:bg-zinc-200 transition-colors"
-          >
-            Kembali ke Dashboard
-          </button>
-        </div>
+        <AboutOverlay onClose={() => setCurrentScreen('dashboard')} />
       )}
     </div>
   );
