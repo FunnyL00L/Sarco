@@ -6,8 +6,9 @@
 import { useState, useRef, useEffect, Suspense, Component, ReactNode, useMemo } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { XR, createXRStore, useXRHitTest, useXRInputSourceEvent, XRDomOverlay } from '@react-three/xr';
-import { OrbitControls, Environment, Line, useGLTF, useProgress } from '@react-three/drei';
-import { Box, Circle, Triangle, Info, X, ChevronLeft, ChevronRight, HelpCircle, RotateCcw, RotateCw, Bone, BookOpen, Download } from 'lucide-react';
+import { OrbitControls, Environment, Line, useGLTF, useProgress, Center } from '@react-three/drei';
+import { Box, Circle, Triangle, Info, X, ChevronLeft, ChevronRight, HelpCircle, RotateCcw, RotateCw, Bone, BookOpen, Download, Eye } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import * as THREE from 'three';
 import QuizOverlay from './components/QuizOverlay';
 
@@ -301,6 +302,301 @@ function AboutOverlay({ onClose }: { onClose: () => void }) {
   );
 }
 
+function RotatingButton({ 
+  isARSupported, 
+  onStartAR, 
+  onShowSarco 
+}: { 
+  isARSupported: boolean | null, 
+  onStartAR: () => void, 
+  onShowSarco: () => void 
+}) {
+  const [activeButton, setActiveButton] = useState<'ar' | 'viewer'>('ar');
+  const [touchStartX, setTouchStartX] = useState(0);
+  const [touchStartY, setTouchStartY] = useState(0);
+
+  useEffect(() => {
+    // Jika AR tidak didukung, kunci tombol hanya ke "Tampilkan Sarco"
+    if (isARSupported === false) {
+      setActiveButton('viewer');
+    }
+  }, [isARSupported]);
+
+  // Jika AR tidak didukung, tampilkan tombol Tampilkan Sarco sebagai satu-satunya opsi utama
+  if (isARSupported === false) {
+    return (
+      <button
+        onClick={onShowSarco}
+        className="w-full bg-amber-600 hover:bg-amber-700 text-white py-4 rounded-2xl font-bold text-lg transition-all flex items-center justify-center gap-2 active:scale-95 shadow-lg shadow-amber-600/25 border border-white/10"
+      >
+        <Eye size={20} />
+        Tampilkan Sarco
+      </button>
+    );
+  }
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchStartX(e.touches[0].clientX);
+    setTouchStartY(e.touches[0].clientY);
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    const touchEndX = e.changedTouches[0].clientX;
+    const touchEndY = e.changedTouches[0].clientY;
+    const diffX = touchStartX - touchEndX;
+    const diffY = touchStartY - touchEndY;
+    
+    // Deteksi geser horizontal maupun vertikal dengan threshold 40px
+    if (Math.abs(diffX) > 40 || Math.abs(diffY) > 40) {
+      setActiveButton((prev) => (prev === 'ar' ? 'viewer' : 'ar'));
+    }
+  };
+
+  const isAR = activeButton === 'ar';
+
+  return (
+    <div className="flex flex-col gap-3 w-full">
+      {/* 3D Cube Container */}
+      <div 
+        style={{ perspective: '1000px' }}
+        className="relative w-full h-14 select-none cursor-grab active:cursor-grabbing"
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+      >
+        <motion.div
+          animate={{ rotateX: isAR ? 0 : 90 }}
+          transition={{ type: 'spring', stiffness: 180, damping: 22 }}
+          style={{ transformStyle: 'preserve-3d' }}
+          className="relative w-full h-full"
+        >
+          {/* Front Face: Mulai AR */}
+          <div
+            style={{
+              transform: 'rotateX(0deg) translateZ(28px)',
+              WebkitBackfaceVisibility: 'hidden',
+              backfaceVisibility: 'hidden',
+            }}
+            className="absolute inset-0 w-full h-full"
+          >
+            <button
+              onClick={onStartAR}
+              className="w-full h-full bg-amber-600 hover:bg-amber-700 text-white rounded-2xl font-bold text-lg transition-all flex items-center justify-center gap-2 active:scale-95 shadow-lg shadow-amber-600/25 border border-white/10"
+            >
+              <Bone size={20} className="animate-pulse" />
+              Mulai AR
+            </button>
+          </div>
+
+          {/* Top Face: Tampilkan Sarco */}
+          <div
+            style={{
+              transform: 'rotateX(-90deg) translateZ(28px)',
+              WebkitBackfaceVisibility: 'hidden',
+              backfaceVisibility: 'hidden',
+            }}
+            className="absolute inset-0 w-full h-full"
+          >
+            <button
+              onClick={onShowSarco}
+              className="w-full h-full bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-bold text-lg transition-all flex items-center justify-center gap-2 active:scale-95 shadow-lg shadow-blue-600/25 border border-white/10"
+            >
+              <Eye size={20} />
+              Tampilkan Sarco
+            </button>
+          </div>
+        </motion.div>
+      </div>
+
+      {/* Aesthetic Navigation Indicators & Hints */}
+      <div className="flex flex-col items-center gap-2">
+        {/* Bulatan indikator halaman */}
+        <div className="flex gap-2 justify-center items-center">
+          <button 
+            onClick={() => setActiveButton('ar')}
+            className={`h-1.5 rounded-full transition-all duration-300 ${isAR ? 'w-4 bg-amber-500' : 'w-1.5 bg-zinc-600 hover:bg-zinc-450'}`} 
+          />
+          <button 
+            onClick={() => setActiveButton('viewer')}
+            className={`h-1.5 rounded-full transition-all duration-300 ${!isAR ? 'w-4 bg-blue-500' : 'w-1.5 bg-zinc-600 hover:bg-zinc-450'}`} 
+          />
+        </div>
+        {/* Petunjuk Interaksi */}
+        <p className="text-[10px] text-zinc-500 font-medium tracking-wider uppercase animate-pulse select-none">
+          Geser (swipe) tombol ke atas/bawah/samping untuk pilihan lain
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function SarcophagusViewerOverlay({ onClose }: { onClose: () => void }) {
+  const [selectedIdx, setSelectedIdx] = useState(0);
+  const [showDetail, setShowDetail] = useState(false);
+  const [autoRotate, setAutoRotate] = useState(true);
+
+  const modelInfo = arData[selectedIdx];
+
+  return (
+    <div className="absolute inset-0 bg-zinc-950 flex flex-col z-20 pointer-events-auto">
+      {/* Top Header */}
+      <div className="absolute top-6 left-6 right-6 flex justify-between items-center z-30 pointer-events-none">
+        <button
+          onClick={onClose}
+          className="flex items-center gap-2 bg-black/60 backdrop-blur-md px-4 py-2.5 rounded-xl border border-white/10 text-white hover:bg-zinc-800 transition-all shadow-lg pointer-events-auto"
+        >
+          <ChevronLeft size={20} />
+          <span className="text-sm font-medium">Dashboard</span>
+        </button>
+
+        <div className="bg-black/60 backdrop-blur-md px-4 py-2.5 rounded-xl border border-white/10 text-white font-semibold text-xs uppercase tracking-wider shadow-lg">
+          Viewer 3D Interaktif
+        </div>
+      </div>
+
+      {/* Interactive 3D Canvas */}
+      <div className="flex-1 w-full h-full relative" onClick={() => setShowDetail(true)}>
+        <Suspense fallback={
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-950 text-white">
+            <div className="animate-spin w-10 h-10 rounded-full border-4 border-amber-500 border-t-transparent mb-4"></div>
+            <p className="text-zinc-400 font-mono">Memuat Model 3D...</p>
+          </div>
+        }>
+          <Canvas className="w-full h-full" camera={{ position: [0, 0.5, 2.5], fov: 45 }}>
+            <ambientLight intensity={0.8} />
+            <directionalLight position={[5, 10, 5]} intensity={1.5} />
+            <pointLight position={[-5, 5, -5]} intensity={0.5} />
+            <Environment preset="city" />
+            
+            <Center>
+              <group scale={[0.8, 0.8, 0.8]}>
+                <GLBModel url={modelInfo.glb} />
+              </group>
+            </Center>
+
+            <OrbitControls 
+              enablePan={true} 
+              enableZoom={true} 
+              autoRotate={autoRotate}
+              autoRotateSpeed={1.5}
+            />
+          </Canvas>
+        </Suspense>
+
+        {/* Swipe & Tap Hint */}
+        <div className="absolute bottom-28 left-1/2 -translate-x-1/2 bg-black/50 backdrop-blur-sm text-zinc-300 px-4 py-2 rounded-full border border-white/5 text-xs text-center pointer-events-none select-none">
+          Sentuh & geser untuk rotasi. Ketuk model untuk info detail.
+        </div>
+      </div>
+
+      {/* Selection Panel & Detail Trigger */}
+      <div className="absolute bottom-6 left-6 right-6 flex flex-col sm:flex-row items-center justify-between gap-4 z-30 pointer-events-none">
+        {/* Model Tabs */}
+        <div className="flex bg-black/60 backdrop-blur-md p-1.5 rounded-2xl border border-white/10 shadow-xl pointer-events-auto w-full sm:w-auto">
+          {arData.map((data, idx) => (
+            <button
+              key={data.id}
+              onClick={(e) => {
+                e.stopPropagation();
+                setSelectedIdx(idx);
+              }}
+              className={`flex-1 sm:flex-none px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${selectedIdx === idx ? 'bg-amber-600 text-white shadow-lg' : 'text-zinc-400 hover:text-zinc-200'}`}
+            >
+              <Box size={14} />
+              {data.title}
+            </button>
+          ))}
+        </div>
+
+        {/* Action Controls */}
+        <div className="flex gap-2 w-full sm:w-auto justify-end pointer-events-auto">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setAutoRotate(!autoRotate);
+            }}
+            className={`p-3 rounded-xl border border-white/10 shadow-xl transition-all ${autoRotate ? 'bg-amber-600/20 text-amber-400 border-amber-500/30' : 'bg-black/60 text-zinc-400'}`}
+            title="Auto Putar"
+          >
+            <RotateCw size={20} className={autoRotate ? "animate-spin" : ""} style={autoRotate ? { animationDuration: '4s' } : undefined} />
+          </button>
+
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowDetail(true);
+            }}
+            className="flex-1 sm:flex-none px-6 py-3 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-2 shadow-xl shadow-amber-600/20"
+          >
+            <Info size={18} />
+            Info Detail
+          </button>
+        </div>
+      </div>
+
+      {/* Description Popup */}
+      <AnimatePresence>
+        {showDetail && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-40 p-6 pointer-events-auto"
+            onClick={() => setShowDetail(false)}
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="bg-zinc-900 border border-white/10 p-6 rounded-3xl max-w-md w-full relative shadow-2xl text-center"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                onClick={() => setShowDetail(false)}
+                className="absolute top-4 right-4 text-zinc-400 hover:text-white transition-colors p-1 rounded-full hover:bg-white/5"
+              >
+                <X size={24} />
+              </button>
+              
+              <div className="w-16 h-16 bg-amber-500/10 text-amber-500 rounded-full flex items-center justify-center mx-auto mb-4 border border-amber-500/20">
+                <Bone size={32} />
+              </div>
+              
+              <h3 className="text-2xl font-bold text-white mb-1">{modelInfo.title}</h3>
+              <span className="inline-block px-3 py-1 bg-zinc-850 text-zinc-400 rounded-full text-xs font-semibold mb-4 border border-white/5">
+                ID: {modelInfo.id}
+              </span>
+
+              <div className="bg-zinc-950/60 p-4 rounded-2xl text-left border border-white/5 mb-6 max-h-60 overflow-y-auto">
+                <p className="text-zinc-300 text-sm leading-relaxed whitespace-pre-wrap">
+                  {modelInfo.desc}
+                </p>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowDetail(false)}
+                  className="flex-1 py-3 bg-zinc-800 hover:bg-zinc-700 text-white font-semibold rounded-xl transition-colors border border-white/10 text-sm"
+                >
+                  Tutup Info
+                </button>
+                <a
+                  href="https://drive.google.com/uc?id=1iUQvt0DTvnzchGgPSOX22L82VDwGHcCP&export=download"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 py-3 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-1.5 text-sm shadow-lg shadow-amber-600/20"
+                >
+                  <Download size={16} />
+                  Modul Materi
+                </a>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 function MateriOverlay({ onClose }: { onClose: () => void }) {
   return (
     <div className="absolute inset-0 bg-zinc-900 flex flex-col items-center justify-center z-20 pointer-events-auto p-6">
@@ -341,7 +637,7 @@ export default function App() {
   const [readiness, setReadiness] = useState(0);
   const [rotationY, setRotationY] = useState(0);
   const [infoModal, setInfoModal] = useState<{ title: string, desc: string } | null>(null);
-  const [currentScreen, setCurrentScreen] = useState<'dashboard' | 'quiz' | 'about' | 'ar' | 'materi'>('dashboard');
+  const [currentScreen, setCurrentScreen] = useState<'dashboard' | 'quiz' | 'about' | 'ar' | 'materi' | 'viewer'>('dashboard');
 
   const [isSwiping, setIsSwiping] = useState(false);
   const [touchStartX, setTouchStartX] = useState(0);
@@ -618,12 +914,9 @@ export default function App() {
             <p className="text-zinc-400 mb-12 text-center max-w-xs">Eksplorasi peninggalan prasejarah dalam wujud tiga dimensi.</p>
             
             <div className="flex flex-col gap-4 w-64">
-              <button
-                onClick={async () => {
-                  if (isARSupported === false) {
-                    alert("AR tidak didukung di perangkat atau browser ini.");
-                    return;
-                  }
+              <RotatingButton 
+                isARSupported={isARSupported}
+                onStartAR={async () => {
                   try {
                     await store.enterAR();
                     setCurrentScreen('ar');
@@ -632,16 +925,10 @@ export default function App() {
                     alert("AR tidak didukung di perangkat ini atau terjadi kesalahan: " + err.message);
                   }
                 }}
-                disabled={isARSupported === false}
-                className={`w-full py-4 rounded-2xl font-bold text-lg transition-all flex items-center justify-center gap-2 ${
-                  isARSupported === false 
-                    ? 'bg-zinc-700 text-zinc-500 cursor-not-allowed' 
-                    : 'bg-amber-600 hover:bg-amber-700 text-white active:scale-95 shadow-lg shadow-amber-600/25'
-                }`}
-              >
-                <Bone size={20} />
-                {isARSupported === false ? 'AR Tidak Didukung' : 'Mulai AR'}
-              </button>
+                onShowSarco={() => {
+                  setCurrentScreen('viewer');
+                }}
+              />
               <button
                 onClick={() => setCurrentScreen('materi')}
                 className="w-full bg-blue-600/80 backdrop-blur-md hover:bg-blue-700 text-white py-4 rounded-2xl font-semibold transition-all active:scale-95 border border-white/10 flex items-center justify-center gap-2 shadow-lg shadow-blue-600/20"
@@ -693,6 +980,11 @@ export default function App() {
       {/* About Screen */}
       {currentScreen === 'about' && (
         <AboutOverlay onClose={() => setCurrentScreen('dashboard')} />
+      )}
+
+      {/* Interactive 3D Viewer Screen */}
+      {currentScreen === 'viewer' && (
+        <SarcophagusViewerOverlay onClose={() => setCurrentScreen('dashboard')} />
       )}
     </div>
   );
